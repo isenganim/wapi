@@ -69,6 +69,13 @@ const createApp = (client, outgoingMessageQueue, config, db, logger = console) =
         
         
     app.post('/send', async function(req, res) {
+        const state = await client.getState();
+        if (state != 'CONNECTED') {
+            res.status(403).json({ 
+                error: 'Whatsapp not connected!! Please scan QR' 
+        });
+            return;
+        }
         try {
             outgoingMessageQueue.push(req.body)
                 .on('failed', function (err) {

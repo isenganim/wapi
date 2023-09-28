@@ -1,6 +1,7 @@
 const qrImage = require('qr-image');
 const express = require('express');
-const basicAuth = require('express-basic-auth');
+// const basicAuth = require('express-basic-auth');
+const qrcode = require('qrcode');
 
 const createApp = (client, outgoingMessageQueue, config, db, logger = console) => { 
     const app = express();
@@ -8,9 +9,9 @@ const createApp = (client, outgoingMessageQueue, config, db, logger = console) =
 
     app.use(express.json({ limit: '100mb' }));
 
-    const basicAuthUsers = {};
-    basicAuthUsers[config.user] = config.password;
-    app.use(basicAuth({ users: basicAuthUsers }));
+    // const basicAuthUsers = {};
+    // basicAuthUsers[config.user] = config.password;
+    // app.use(basicAuth({ users: basicAuthUsers }));
 
     app.get('/', async function(_req, res) {
         const now = new Date();
@@ -20,20 +21,53 @@ const createApp = (client, outgoingMessageQueue, config, db, logger = console) =
         });
     });
 
+    // app.get('/qr', async function(_req, res) {
+    //     const state = await client.getState();
+    //     logger.info(`client state is ${state}`);
+    //     if (state == 'CONNECTED') {
+    //         res.status(403).json({ error: `Already linked to ${client.info.wid.user}` });
+    //     } else if (!client.qr) {
+    //         res.status(404).json({ error: 'No QR found' });
+    //     } else {
+    //         let stream = qrImage.image(client.qr, { type: 'png', ec_level: 'H', size: 5, margin: 0 });
+    //         res.setHeader('Content-type', 'image/png');
+    //         stream.pipe(res);
+    //     }
+    // });
+
     app.get('/qr', async function(_req, res) {
         const state = await client.getState();
         logger.info(`client state is ${state}`);
         if (state == 'CONNECTED') {
-            res.status(403).json({ error: `Already linked to ${client.info.wid.user}` });
+            res.status(403).json({ 
+                error: `Already linked to ${client.info.wid.user}` 
+            });
         } else if (!client.qr) {
-            res.status(404).json({ error: 'No QR found' });
+            res.status(404).json({ 
+                error: 'No QR found' 
+            });
         } else {
-            let stream = qrImage.image(client.qr, { type: 'png', ec_level: 'H', size: 5, margin: 0 });
-            res.setHeader('Content-type', 'image/png');
-            stream.pipe(res);
+            try {
+                const qrImageBuffer = await qrcode.toBuffer(client.qr, {
+                    type: 'png',
+                    errorCorrectionLevel: 'H',
+                    width: 500, // Adjust the size as needed
+            });
+
+            res.setHeader('Content-Type', 'image/png');
+            res.status(200).send(qrImageBuffer);
+
+            } catch (error) {
+                console.log('Error generating QR code: ', error);
+                res.status(500).json({
+                    status: 'error',
+                    message: 'Internal server error',
+                });
+            }
         }
     });
-
+        
+        
     app.post('/send', async function(req, res) {
         try {
             outgoingMessageQueue.push(req.body)

@@ -51,6 +51,7 @@ const createApp = (client, outgoingMessageQueue, config, db, logger = console) =
                 const qrImageBuffer = await qrcode.toBuffer(client.qr, {
                     type: 'png',
                     errorCorrectionLevel: 'H',
+                    margin: 2,
                     width: 500, // Adjust the size as needed
             });
 
